@@ -44,10 +44,14 @@ const MultiLevelSelector: React.FC<MultiLevelSelectorProps> = ({
       case 'movie':
         return [
           ...baseOptions,
+          { label: '科幻', value: 'sci-fi' },
+          { label: '灾难', value: 'disaster' },
+          { label: '废土', value: 'wasteland' },
+          { label: '反乌托邦', value: 'dystopia' },
+          { label: '丧尸', value: 'zombie' },
           { label: '喜剧', value: 'comedy' },
           { label: '爱情', value: 'romance' },
           { label: '动作', value: 'action' },
-          { label: '科幻', value: 'sci-fi' },
           { label: '悬疑', value: 'suspense' },
           { label: '犯罪', value: 'crime' },
           { label: '惊悚', value: 'thriller' },
@@ -61,7 +65,6 @@ const MultiLevelSelector: React.FC<MultiLevelSelectorProps> = ({
           { label: '歌舞', value: 'musical' },
           { label: '武侠', value: 'wuxia' },
           { label: '情色', value: 'erotic' },
-          { label: '灾难', value: 'disaster' },
           { label: '西部', value: 'western' },
           { label: '纪录片', value: 'documentary' },
           { label: '短片', value: 'short' },
@@ -207,7 +210,7 @@ const MultiLevelSelector: React.FC<MultiLevelSelectorProps> = ({
       case 'anime-tv':
         return [
           ...baseOptions,
-          { label: '黑色幽默', value: 'dark_humor' },
+          { label: '异世界', value: 're-world' },
           { label: '历史', value: 'history' },
           { label: '歌舞', value: 'musical' },
           { label: '励志', value: 'inspirational' },
@@ -222,6 +225,10 @@ const MultiLevelSelector: React.FC<MultiLevelSelectorProps> = ({
           { label: '恋爱', value: 'love' },
           { label: '魔幻', value: 'fantasy' },
           { label: '科幻', value: 'sci_fi' },
+          { label: '耽美', value: 'bl' },
+          { label: '日常', value: 'time' },
+          { label: '热血', value: 'heart' },
+          { label: '黑色幽默', value: 'dark_humor' },
         ];
       default:
         return baseOptions;
