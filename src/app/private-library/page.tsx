@@ -829,7 +829,7 @@ export default function PrivateLibraryPage() {
             </div>
           ) : (
             // OpenList/Emby 加载骨架屏 - 海报卡片样式
-            <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4'>
+            <div className='grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4'>
               {Array.from({ length: pageSize }).map((_, index) => (
                 <div
                   key={index}
@@ -1057,7 +1057,7 @@ export default function PrivateLibraryPage() {
           </div>
         ) : (
           <>
-            <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4'>
+            <div className='grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4'>
               {videos.map((video) => {
                 // 构建source参数用于VideoCard
                 // 如果是emby源且有embyKey，使用下划线格式
