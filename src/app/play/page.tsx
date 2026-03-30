@@ -9830,7 +9830,7 @@ function PlayPageClient() {
                           </span>
                         </button>
 
-                        {showExternalTranscodeButton && (
+                        {true && (
                           <button
                             onClick={async (e) => {
                               e.preventDefault();
