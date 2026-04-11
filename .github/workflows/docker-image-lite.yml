@@ -53,7 +53,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/mtvpls/moontvplus-lite
+          images: ghcr.io/richardkurspe/RichardTV-Plus-lite
           tags: |
             type=raw,value=${{ github.event.inputs.tag || 'latest' }}
 
