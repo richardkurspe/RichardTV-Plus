@@ -4,8 +4,6 @@ import { db } from '@/lib/db';
 
 import { AdminConfig } from './admin.types';
 
-const BUILTIN_DANMAKU_API_BASE = 'https://mtvpls-danmu.netlify.app/87654321';
-
 export interface ApiSite {
   key: string;
   api: string;
@@ -225,9 +223,6 @@ async function getInitConfig(configFile: string, subConfig: {
   } catch (e) {
     cfgFile = {} as ConfigFileStruct;
   }
-  const hasCustomDanmakuEnv = Boolean(
-    process.env.DANMAKU_API_BASE || process.env.DANMAKU_API_TOKEN
-  );
   const adminConfig: AdminConfig = {
     ConfigFile: configSource,
     ConfigSubscribtion: subConfig,
@@ -250,10 +245,7 @@ async function getInitConfig(configFile: string, subConfig: {
       FluidSearch:
         process.env.NEXT_PUBLIC_FLUID_SEARCH !== 'false',
       // 弹幕配置
-      DanmakuSourceType: hasCustomDanmakuEnv ? 'custom' : 'builtin',
-      DanmakuApiBase:
-        process.env.DANMAKU_API_BASE ||
-        (hasCustomDanmakuEnv ? 'http://localhost:9321' : BUILTIN_DANMAKU_API_BASE),
+      DanmakuApiBase: process.env.DANMAKU_API_BASE || 'http://localhost:9321',
       DanmakuApiToken: process.env.DANMAKU_API_TOKEN || '87654321',
       // TMDB配置
       TMDBApiKey: process.env.TMDB_API_KEY || '',
@@ -271,14 +263,6 @@ async function getInitConfig(configFile: string, subConfig: {
       MagnetAcgripReverseProxy: '',
       // 评论功能开关
       EnableComments: false,
-      EnableRegistration: false,
-      RequireRegistrationInviteCode: false,
-      RegistrationInviteCode: '',
-      RegistrationRequireTurnstile: false,
-      LoginRequireTurnstile: false,
-      TurnstileSiteKey: '',
-      TurnstileSecretKey: '',
-      DefaultUserTags: [],
     },
     UserConfig: {
       Users: [],
@@ -447,8 +431,7 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
       DoubanImageProxy: '',
       DisableYellowFilter: false,
       FluidSearch: true,
-      DanmakuSourceType: 'builtin',
-      DanmakuApiBase: BUILTIN_DANMAKU_API_BASE,
+      DanmakuApiBase: 'http://localhost:9321',
       DanmakuApiToken: '87654321',
       PansouApiUrl: '',
       PansouUsername: '',
@@ -459,25 +442,11 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
       MagnetDmhyReverseProxy: '',
       MagnetAcgripReverseProxy: '',
       EnableComments: false,
-      EnableRegistration: false,
-      RequireRegistrationInviteCode: false,
-      RegistrationInviteCode: '',
-      RegistrationRequireTurnstile: false,
-      LoginRequireTurnstile: false,
-      TurnstileSiteKey: '',
-      TurnstileSecretKey: '',
-      DefaultUserTags: [],
     };
   }
   // 确保弹幕配置存在
-  if (adminConfig.SiteConfig.DanmakuSourceType === undefined) {
-    adminConfig.SiteConfig.DanmakuSourceType = 'custom';
-  }
   if (!adminConfig.SiteConfig.DanmakuApiBase) {
-    adminConfig.SiteConfig.DanmakuApiBase =
-      adminConfig.SiteConfig.DanmakuSourceType === 'builtin'
-        ? BUILTIN_DANMAKU_API_BASE
-        : 'http://localhost:9321';
+    adminConfig.SiteConfig.DanmakuApiBase = 'http://localhost:9321';
   }
   if (!adminConfig.SiteConfig.DanmakuApiToken) {
     adminConfig.SiteConfig.DanmakuApiToken = '87654321';
@@ -485,30 +454,6 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
   // 确保评论开关存在
   if (adminConfig.SiteConfig.EnableComments === undefined) {
     adminConfig.SiteConfig.EnableComments = false;
-  }
-  if (adminConfig.SiteConfig.EnableRegistration === undefined) {
-    adminConfig.SiteConfig.EnableRegistration = false;
-  }
-  if (adminConfig.SiteConfig.RequireRegistrationInviteCode === undefined) {
-    adminConfig.SiteConfig.RequireRegistrationInviteCode = false;
-  }
-  if (adminConfig.SiteConfig.RegistrationInviteCode === undefined) {
-    adminConfig.SiteConfig.RegistrationInviteCode = '';
-  }
-  if (adminConfig.SiteConfig.RegistrationRequireTurnstile === undefined) {
-    adminConfig.SiteConfig.RegistrationRequireTurnstile = false;
-  }
-  if (adminConfig.SiteConfig.LoginRequireTurnstile === undefined) {
-    adminConfig.SiteConfig.LoginRequireTurnstile = false;
-  }
-  if (adminConfig.SiteConfig.TurnstileSiteKey === undefined) {
-    adminConfig.SiteConfig.TurnstileSiteKey = '';
-  }
-  if (adminConfig.SiteConfig.TurnstileSecretKey === undefined) {
-    adminConfig.SiteConfig.TurnstileSecretKey = '';
-  }
-  if (adminConfig.SiteConfig.DefaultUserTags === undefined) {
-    adminConfig.SiteConfig.DefaultUserTags = [];
   }
   if (adminConfig.SiteConfig.PansouKeywordBlocklist === undefined) {
     adminConfig.SiteConfig.PansouKeywordBlocklist = '';
@@ -616,28 +561,6 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
         return true;
       });
     }
-  }
-
-  if (!adminConfig.NetDiskConfig) {
-    adminConfig.NetDiskConfig = {
-      Quark: {
-        Enabled: false,
-        Cookie: '',
-        SavePath: '/',
-        PlayTempSavePath: '/',
-        OpenListTempPath: '/',
-      },
-    };
-  }
-
-  if (!adminConfig.NetDiskConfig.Quark) {
-    adminConfig.NetDiskConfig.Quark = {
-      Enabled: false,
-      Cookie: '',
-      SavePath: '/',
-      PlayTempSavePath: '/',
-      OpenListTempPath: '/',
-    };
   }
 
   // 确保音乐配置存在

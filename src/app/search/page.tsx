@@ -38,7 +38,6 @@ import CapsuleSwitch from '@/components/CapsuleSwitch';
 import ImageViewer from '@/components/ImageViewer';
 import PageLayout from '@/components/PageLayout';
 import PansouSearch from '@/components/PansouSearch';
-import ProxyImage from '@/components/ProxyImage';
 import SearchResultFilter, {
   SearchFilterCategory,
 } from '@/components/SearchResultFilter';
@@ -830,8 +829,9 @@ function SearchPageClient() {
       >
         <div className='flex items-start gap-4'>
           <div className='relative h-32 w-24 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800'>
-            <ProxyImage
-              originalSrc={item.poster}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={processImageUrl(item.poster)}
               alt={item.title}
               className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]'
               loading='lazy'

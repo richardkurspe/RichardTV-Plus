@@ -64,7 +64,6 @@ import Drawer from '@/components/Drawer';
 import EpisodeSelector from '@/components/EpisodeSelector';
 import PageLayout from '@/components/PageLayout';
 import PansouSearch from '@/components/PansouSearch';
-import ProxyImage from '@/components/ProxyImage';
 import { useSite } from '@/components/SiteProvider';
 import SmartRecommendations from '@/components/SmartRecommendations';
 import Toast, { ToastProps } from '@/components/Toast';
@@ -573,24 +572,12 @@ function PlayPageClient() {
 
   // 纠错后的描述信息（用于显示，不触发 detail 更新）
   const [correctedDesc, setCorrectedDesc] = useState<string>('');
-  const [quarkTempTMDBMeta, setQuarkTempTMDBMeta] = useState<{
-    desc?: string;
-    poster?: string;
-    year?: string;
-    tmdbId?: number;
-  } | null>(null);
-  const [pendingQuarkTempTMDBData, setPendingQuarkTempTMDBData] = useState<any | null>(null);
 
   // 当前源和ID - source 直接存储完整格式（如 'emby_wumei' 或 'emby'）
   const [currentSource, setCurrentSource] = useState(searchParams.get('source') || '');
   const [currentId, setCurrentId] = useState(searchParams.get('id') || '');
   const [fileName] = useState(searchParams.get('fileName') || ''); // 小雅源：用户点击的文件名
   const isDirectPlay = currentSource === 'directplay';
-
-  useEffect(() => {
-    setQuarkTempTMDBMeta(null);
-    setPendingQuarkTempTMDBData(null);
-  }, [currentSource, currentId]);
 
   // 解析 source 参数以获取 embyKey（仅用于 API 调用）
   const parseSourceForApi = (source: string): { source: string; embyKey?: string } => {
@@ -1200,18 +1187,14 @@ function PlayPageClient() {
                   const detCacheAge = Date.now() - detTimestamp;
                   const detCacheMaxAge = 24 * 60 * 60 * 1000; // 1天
 
-                  if (detCacheAge < detCacheMaxAge && data) {
-                    if (data.backdrop) {
-                      setTmdbBackdrop(processImageUrl(data.backdrop));
-                    } else {
-                      setTmdbBackdrop(null);
-                    }
+                  if (detCacheAge < detCacheMaxAge && data && data.backdrop) {
+                    console.log('使用缓存的TMDB详情数据');
+                    setTmdbBackdrop(processImageUrl(data.backdrop));
 
                     // 如果没有豆瓣ID，使用TMDb数据补充
                     if (!videoDoubanId || videoDoubanId === 0) {
                       populateDoubanFieldsFromTMDB(data);
                     }
-                    populatePlayMetadataFromTMDB(data);
                     return;
                   }
                 } catch (e) {
@@ -1232,6 +1215,7 @@ function PlayPageClient() {
         const response = await fetch(url);
 
         if (!response.ok) {
+          console.log('获取TMDB详情失败');
           setTmdbBackdrop(null);
           return;
         }
@@ -1240,91 +1224,42 @@ function PlayPageClient() {
 
         if (result.backdrop) {
           setTmdbBackdrop(processImageUrl(result.backdrop));
+
+          // 如果没有豆瓣ID，使用TMDb数据补充
+          if (!videoDoubanId || videoDoubanId === 0) {
+            populateDoubanFieldsFromTMDB(result);
+          }
+
+          // 保存title到tmdbId的映射到localStorage（1个月）
+          if (result.tmdbId) {
+            try {
+              localStorage.setItem(
+                mappingCacheKey,
+                JSON.stringify({
+                  tmdbId: result.tmdbId,
+                  timestamp: Date.now(),
+                })
+              );
+
+              // 保存TMDB详情数据到localStorage（1天）
+              const detailsCacheKey = `tmdb_details_${result.tmdbId}`;
+              localStorage.setItem(
+                detailsCacheKey,
+                JSON.stringify({
+                  data: result,
+                  timestamp: Date.now(),
+                })
+              );
+            } catch (e) {
+              console.error('保存缓存失败:', e);
+            }
+          }
         } else {
           setTmdbBackdrop(null);
-        }
-
-        // 如果没有豆瓣ID，使用TMDb数据补充
-        if (!videoDoubanId || videoDoubanId === 0) {
-          populateDoubanFieldsFromTMDB(result);
-        }
-        populatePlayMetadataFromTMDB(result);
-
-        // 保存title到tmdbId的映射到localStorage（1个月）
-        if (result.tmdbId) {
-          try {
-            localStorage.setItem(
-              mappingCacheKey,
-              JSON.stringify({
-                tmdbId: result.tmdbId,
-                timestamp: Date.now(),
-              })
-            );
-
-            // 保存TMDB详情数据到localStorage（1天）
-            const detailsCacheKey = `tmdb_details_${result.tmdbId}`;
-            localStorage.setItem(
-              detailsCacheKey,
-              JSON.stringify({
-                data: result,
-                timestamp: Date.now(),
-              })
-            );
-          } catch (e) {
-            console.error('保存缓存失败:', e);
-          }
         }
       } catch (error) {
         console.error('获取TMDB背景图失败:', error);
         setTmdbBackdrop(null);
-      }
-    };
-
-    const populatePlayMetadataFromTMDB = (tmdbData: any) => {
-      const currentDetail = detailRef.current;
-      if (!currentDetail || currentDetail.source !== 'quark-temp') {
-        setPendingQuarkTempTMDBData(tmdbData);
-        return;
-      }
-
-      const tmdbYear = tmdbData.releaseDate?.split('-')[0] || '';
-      const shouldReplaceDesc = !currentDetail.desc || currentDetail.desc.startsWith('临时播放目录：');
-
-      const resolvedTmdbId = typeof tmdbData.tmdbId === 'string'
-        ? Number(String(tmdbData.tmdbId).split(':')[1] || 0)
-        : tmdbData.tmdbId;
-
-      setQuarkTempTMDBMeta({
-        desc: shouldReplaceDesc ? (tmdbData.overview || currentDetail.desc) : currentDetail.desc,
-        poster: currentDetail.poster || tmdbData.poster || '',
-        year: currentDetail.year || tmdbYear,
-        tmdbId: currentDetail.tmdb_id || resolvedTmdbId,
-      });
-
-      setDetail((prev) => {
-        if (!prev || prev.source !== 'quark-temp') {
-          return prev;
-        }
-
-        return {
-          ...prev,
-          poster: prev.poster || tmdbData.poster || '',
-          year: prev.year || tmdbYear,
-          desc: shouldReplaceDesc ? (tmdbData.overview || prev.desc) : prev.desc,
-          tmdb_id: prev.tmdb_id || resolvedTmdbId,
-        };
-      });
-
-      if (tmdbData.overview && (!correctedDesc || currentDetail.desc?.startsWith('临时播放目录：'))) {
-        setCorrectedDesc(tmdbData.overview);
-      }
-
-      if (tmdbData.poster && !currentDetail.poster) {
-        setVideoCover(processImageUrl(tmdbData.poster));
-      }
-
-      if (tmdbYear && !currentDetail.year) {
-        setVideoYear(tmdbYear);
       }
     };
 
@@ -1361,45 +1296,6 @@ function PlayPageClient() {
     fetchTMDBBackdrop();
   }, [videoTitle, videoDoubanId, isDirectPlay]);
 
-  useEffect(() => {
-    if (
-      pendingQuarkTempTMDBData &&
-      detail?.source === 'quark-temp'
-    ) {
-      const pending = pendingQuarkTempTMDBData;
-      setPendingQuarkTempTMDBData(null);
-      const tmdbYear = pending.releaseDate?.split('-')[0] || '';
-      const shouldReplaceDesc = !detail.desc || detail.desc.startsWith('临时播放目录：');
-      const resolvedTmdbId = typeof pending.tmdbId === 'string'
-        ? Number(String(pending.tmdbId).split(':')[1] || 0)
-        : pending.tmdbId;
-
-      setQuarkTempTMDBMeta({
-        desc: shouldReplaceDesc ? (pending.overview || detail.desc) : detail.desc,
-        poster: detail.poster || pending.poster || '',
-        year: detail.year || tmdbYear,
-        tmdbId: detail.tmdb_id || resolvedTmdbId,
-      });
-
-      setDetail((prev) => prev && prev.source === 'quark-temp' ? {
-        ...prev,
-        poster: prev.poster || pending.poster || '',
-        year: prev.year || tmdbYear,
-        desc: shouldReplaceDesc ? (pending.overview || prev.desc) : prev.desc,
-        tmdb_id: prev.tmdb_id || resolvedTmdbId,
-      } : prev);
-
-      if (pending.poster && !detail.poster) {
-        setVideoCover(processImageUrl(pending.poster));
-      }
-      if (tmdbYear && !detail.year) {
-        setVideoYear(tmdbYear);
-      }
-      if (pending.overview) {
-        setCorrectedDesc(pending.overview);
-      }
-    }
-  }, [pendingQuarkTempTMDBData, detail]);
 
   // 视频播放地址
   const [videoUrl, setVideoUrl] = useState('');
@@ -1517,7 +1413,6 @@ function PlayPageClient() {
     !isM3u8LikeUrl(videoUrl) &&
     (
       detail.source === 'openlist' ||
-      detail.source === 'quark-temp' ||
       detail.source === 'xiaoya' ||
       detail.source.startsWith('emby')
     )
@@ -8976,12 +8871,12 @@ function PlayPageClient() {
                       </span>
                     )}
                     {/* 优先使用 doubanYear，如果没有则使用 detail.year 或 videoYear */}
-                    {(doubanYear || quarkTempTMDBMeta?.year || detail?.year || videoYear) && (
-                      <span>{doubanYear || quarkTempTMDBMeta?.year || detail?.year || videoYear}</span>
+                    {(doubanYear || detail?.year || videoYear) && (
+                      <span>{doubanYear || detail?.year || videoYear}</span>
                     )}
                     {detail?.source_name && (
                       <span
-                        className={`relative group cursor-pointer border px-2 py-[1px] rounded ${detail.source === 'xiaoya' ? 'border-blue-500' : detail.source === 'quark-temp' ? 'border-purple-500' : detail.source === 'openlist' || detail.source === 'emby' || detail.source?.startsWith('emby_') ? 'border-yellow-500' : 'border-gray-500/60'
+                        className={`relative group cursor-pointer border px-2 py-[1px] rounded ${detail.source === 'xiaoya' ? 'border-blue-500' : detail.source === 'openlist' || detail.source === 'emby' || detail.source?.startsWith('emby_') ? 'border-yellow-500' : 'border-gray-500/60'
                           }`}
                         onClick={fetchCurrentSourceVideoInfo}
                       >
@@ -9001,7 +8896,7 @@ function PlayPageClient() {
                     {detail?.type_name && <span>{detail.type_name}</span>}
                   </div>
                   {/* 剧情简介 */}
-                  {(doubanCardSubtitle || quarkTempTMDBMeta?.desc || correctedDesc || detail?.desc) && (
+                  {(doubanCardSubtitle || correctedDesc || detail?.desc) && (
                     <div
                       className={`mt-0 text-base leading-relaxed opacity-90 overflow-y-auto pr-2 flex-1 min-h-0 scrollbar-hide ${tmdbBackdrop ? 'text-white' : ''}`}
                       style={{ whiteSpace: 'pre-line' }}
@@ -9012,7 +8907,7 @@ function PlayPageClient() {
                           {doubanCardSubtitle}
                         </div>
                       )}
-                      {quarkTempTMDBMeta?.desc || correctedDesc || detail?.desc}
+                      {correctedDesc || detail?.desc}
                     </div>
                   )}
                 </div>
@@ -9024,8 +8919,8 @@ function PlayPageClient() {
                   <div className='relative bg-gray-300 dark:bg-gray-700 aspect-[2/3] flex items-center justify-center rounded-xl overflow-hidden'>
                     {videoCover ? (
                       <>
-                        <ProxyImage
-                          originalSrc={videoCover}
+                        <img
+                          src={processImageUrl(videoCover)}
                           alt={videoTitle}
                           className='w-full h-full object-cover'
                         />
@@ -9266,7 +9161,6 @@ function PlayPageClient() {
             // 特殊源使用 tmdb，其他使用 cms（通过 doubanId）
             // 如果有豆瓣ID且不为0，传入doubanId
             detail.source === 'openlist' ||
-              detail.source === 'quark-temp' ||
               detail.source?.startsWith('emby') ||
               detail.source === 'xiaoya'
               ? undefined
@@ -9277,7 +9171,6 @@ function PlayPageClient() {
           tmdbId={
             // 特殊源使用 tmdb
             detail.source === 'openlist' ||
-              detail.source === 'quark-temp' ||
               detail.source?.startsWith('emby') ||
               detail.source === 'xiaoya'
               ? detail.tmdb_id
@@ -9289,7 +9182,6 @@ function PlayPageClient() {
             // 非特殊源使用 cms 数据
             // 但如果有豆瓣ID且不为0，则不传入cmsData，优先使用豆瓣数据
             detail.source !== 'openlist' &&
-              detail.source !== 'quark-temp' &&
               !detail.source?.startsWith('emby') &&
               detail.source !== 'xiaoya' &&
               !(detail.douban_id && detail.douban_id !== 0)

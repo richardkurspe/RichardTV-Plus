@@ -13,7 +13,6 @@ export type WatchRoomSocket = Socket<ServerToClientEvents, ClientToServerEvents>
 class WatchRoomSocketManager {
   private socket: WatchRoomSocket | null = null;
   private config: WatchRoomConfig | null = null;
-  private connectionPromise: Promise<WatchRoomSocket> | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private heartbeatTimeoutCheck: NodeJS.Timeout | null = null;
   private lastHeartbeatResponse: number = Date.now();
@@ -24,37 +23,6 @@ class WatchRoomSocketManager {
   async connect(config: WatchRoomConfig): Promise<WatchRoomSocket> {
     if (this.socket?.connected) {
       return this.socket;
-    }
-
-    if (this.connectionPromise) {
-      return this.connectionPromise;
-    }
-
-    if (this.socket) {
-      this.connectionPromise = new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          this.connectionPromise = null;
-          reject(new Error('Socket connection timeout'));
-        }, 10000);
-
-        this.socket!.once('connect', () => {
-          clearTimeout(timeout);
-          this.connectionPromise = null;
-          resolve(this.socket!);
-        });
-
-        this.socket!.once('connect_error', (error) => {
-          clearTimeout(timeout);
-          this.connectionPromise = null;
-          reject(error);
-        });
-
-        if (!this.socket!.connected) {
-          this.socket!.connect();
-        }
-      });
-
-      return this.connectionPromise;
     }
 
     this.config = config;
@@ -104,9 +72,8 @@ class WatchRoomSocketManager {
     // 设置浏览器可见性监听
     this.setupVisibilityListener();
 
-    this.connectionPromise = new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       if (!this.socket) {
-        this.connectionPromise = null;
         reject(new Error('Socket not initialized'));
         return;
       }
@@ -115,7 +82,6 @@ class WatchRoomSocketManager {
       this.socket.once('connect', () => {
         // eslint-disable-next-line no-console
         console.log('[WatchRoom] Connected to server');
-        this.connectionPromise = null;
         if (this.socket) {
           resolve(this.socket);
         }
@@ -124,12 +90,9 @@ class WatchRoomSocketManager {
       this.socket.once('connect_error', (error) => {
         // eslint-disable-next-line no-console
         console.error('[WatchRoom] Connection error:', error);
-        this.connectionPromise = null;
         reject(error);
       });
     });
-
-    return this.connectionPromise;
   }
 
   disconnect() {
@@ -159,8 +122,6 @@ class WatchRoomSocketManager {
       this.socket.disconnect();
       this.socket = null;
     }
-
-    this.connectionPromise = null;
   }
 
   getSocket(): WatchRoomSocket | null {

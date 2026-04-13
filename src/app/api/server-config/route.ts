@@ -50,7 +50,6 @@ export async function GET(request: NextRequest) {
     WatchRoom: watchRoomConfig,
     EnableOfflineDownload: process.env.NEXT_PUBLIC_ENABLE_OFFLINE_DOWNLOAD === 'true',
     EnableRegistration: config.SiteConfig.EnableRegistration || false,
-    RequireRegistrationInviteCode: config.SiteConfig.RequireRegistrationInviteCode || false,
     RegistrationRequireTurnstile: config.SiteConfig.RegistrationRequireTurnstile || false,
     LoginRequireTurnstile: config.SiteConfig.LoginRequireTurnstile || false,
     TurnstileSiteKey: config.SiteConfig.TurnstileSiteKey || '',

@@ -11,8 +11,6 @@ import type {
   Member,
   PlayState,
   Room,
-  RoomType,
-  ScreenState,
   StoredRoomInfo,
   WatchRoomConfig,
 } from '@/types/watch-room';
@@ -30,15 +28,9 @@ export function useWatchRoom(
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const rejoinInFlightRef = useRef(false);
 
   // 重新加入房间（自动重连）
   const rejoinRoom = useCallback(async (info: StoredRoomInfo) => {
-    if (rejoinInFlightRef.current) {
-      return;
-    }
-
-    rejoinInFlightRef.current = true;
     console.log('[WatchRoom] Auto-rejoining room:', info);
     try {
       const sock = watchRoomSocketManager.getSocket();
@@ -70,20 +62,8 @@ export function useWatchRoom(
     } catch (error) {
       console.error('[WatchRoom] Failed to rejoin room:', error);
       clearStoredRoomInfo();
-    } finally {
-      rejoinInFlightRef.current = false;
     }
   }, []);
-
-  const scheduleRejoin = useCallback((info: StoredRoomInfo, delay = 300) => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-    }
-
-    reconnectTimeoutRef.current = setTimeout(() => {
-      rejoinRoom(info);
-    }, delay);
-  }, [rejoinRoom]);
 
   // 连接到服务器
   const connect = useCallback(async (config: WatchRoomConfig) => {
@@ -96,13 +76,15 @@ export function useWatchRoom(
       const storedInfo = getStoredRoomInfo();
       if (storedInfo) {
         console.log('[WatchRoom] Attempting to reconnect to room:', storedInfo.roomId);
-        scheduleRejoin(storedInfo);
+        reconnectTimeoutRef.current = setTimeout(() => {
+          rejoinRoom(storedInfo);
+        }, 1000);
       }
     } catch (error) {
       console.error('[WatchRoom] Failed to connect:', error);
       setIsConnected(false);
     }
-  }, [scheduleRejoin]);
+  }, [rejoinRoom]);
 
   // 断开连接
   const disconnect = useCallback(() => {
@@ -115,12 +97,11 @@ export function useWatchRoom(
     setCurrentRoom(null);
     setMembers([]);
     setChatMessages([]);
-    setIsOwner(false);
   }, []);
 
   // 创建房间
   const createRoom = useCallback(
-    async (data: { name: string; description: string; password?: string; isPublic: boolean; roomType: RoomType; userName: string }) => {
+    async (data: { name: string; description: string; password?: string; isPublic: boolean; userName: string }) => {
       const sock = watchRoomSocketManager.getSocket();
       if (!sock || !watchRoomSocketManager.isConnected()) {
         throw new Error('Not connected');
@@ -159,7 +140,7 @@ export function useWatchRoom(
 
   // 加入房间
   const joinRoom = useCallback(
-    async (data: { roomId: string; password?: string; userName: string; ownerToken?: string }) => {
+    async (data: { roomId: string; password?: string; userName: string }) => {
       const sock = watchRoomSocketManager.getSocket();
       if (!sock || !watchRoomSocketManager.isConnected()) {
         throw new Error('Not connected');
@@ -179,7 +160,7 @@ export function useWatchRoom(
               isOwner: isRoomOwner,
               userName: data.userName,
               password: data.password,
-              ownerToken: isRoomOwner ? (response.room.ownerToken || data.ownerToken) : undefined,
+              ownerToken: isRoomOwner ? response.room.ownerToken : undefined,
               timestamp: Date.now(),
             });
             resolve({ room: response.room, members: response.members });
@@ -314,25 +295,6 @@ export function useWatchRoom(
     [isOwner]
   );
 
-  // 开始屏幕共享
-  const startScreenShare = useCallback(
-    (state: ScreenState) => {
-      const sock = watchRoomSocketManager.getSocket();
-      if (!sock || !isOwner) return;
-
-      sock.emit('screen:start', state);
-    },
-    [isOwner]
-  );
-
-  // 停止屏幕共享
-  const stopScreenShare = useCallback(() => {
-    const sock = watchRoomSocketManager.getSocket();
-    if (!sock || !isOwner) return;
-
-    sock.emit('screen:stop');
-  }, [isOwner]);
-
   // 清除房间播放状态（房主离开播放/直播页面时调用）
   const clearRoomState = useCallback(() => {
     const sock = watchRoomSocketManager.getSocket();
@@ -360,11 +322,7 @@ export function useWatchRoom(
     });
 
     socket.on('room:member-joined', (member) => {
-      setMembers((prev) => {
-        const next = prev.filter((existing) => existing.id !== member.id);
-        next.push(member);
-        return next;
-      });
+      setMembers((prev) => [...prev, member]);
     });
 
     socket.on('room:member-left', (userId) => {
@@ -404,19 +362,6 @@ export function useWatchRoom(
       }
     });
 
-    // 屏幕共享事件
-    socket.on('screen:start', (state) => {
-      if (currentRoom) {
-        setCurrentRoom((prev) => (prev ? { ...prev, currentState: state } : null));
-      }
-    });
-
-    socket.on('screen:stop', () => {
-      if (currentRoom) {
-        setCurrentRoom((prev) => (prev ? { ...prev, currentState: null } : null));
-      }
-    });
-
     // 聊天事件
     socket.on('chat:message', (message) => {
       setChatMessages((prev) => [...prev, message]);
@@ -436,10 +381,6 @@ export function useWatchRoom(
     // 连接状态
     socket.on('connect', () => {
       setIsConnected(true);
-      const storedInfo = getStoredRoomInfo();
-      if (storedInfo) {
-        scheduleRejoin(storedInfo);
-      }
     });
 
     socket.on('disconnect', () => {
@@ -454,14 +395,12 @@ export function useWatchRoom(
       socket.off('play:update');
       socket.off('play:change');
       socket.off('live:change');
-      socket.off('screen:start');
-      socket.off('screen:stop');
       socket.off('chat:message');
       socket.off('state:cleared');
       socket.off('connect');
       socket.off('disconnect');
     };
-  }, [socket, currentRoom, onRoomDeleted, onStateCleared, scheduleRejoin]);
+  }, [socket, currentRoom, onRoomDeleted, onStateCleared]);
 
   // 清理
   useEffect(() => {
@@ -492,8 +431,6 @@ export function useWatchRoom(
     pause,
     changeVideo,
     changeLiveChannel,
-    startScreenShare,
-    stopScreenShare,
     clearRoomState,
   };
 }

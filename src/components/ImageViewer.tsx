@@ -1,10 +1,9 @@
 'use client';
 
 import { X } from 'lucide-react';
+import Image from 'next/image';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-
-import ProxyImage from '@/components/ProxyImage';
 
 interface ImageViewerProps {
   isOpen: boolean;
@@ -152,15 +151,18 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative w-full h-full">
-          <ProxyImage
-            originalSrc={imageUrl}
+          <Image
+            src={imageUrl}
             alt={alt}
+            width={1200}
+            height={1800}
             className="object-contain max-w-[100vw] max-h-[100vh] sm:max-w-[90vw] sm:max-h-[90vh] w-auto h-auto"
             style={{
               maxWidth: '100vw',
               maxHeight: '100vh',
             }}
-            loading="eager"
+            priority
+            quality={100}
           />
         </div>
       </div>

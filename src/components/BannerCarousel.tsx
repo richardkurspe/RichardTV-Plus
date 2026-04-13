@@ -7,8 +7,7 @@ import { useCallback, useEffect, useRef,useState } from 'react';
 
 import { type TMDBItem,getGenreNames, getTMDBImageUrl } from '@/lib/tmdb.client';
 import { getDoubanDetail } from '@/lib/douban.client';
-
-import ProxyImage from '@/components/ProxyImage';
+import { processImageUrl } from '@/lib/utils';
 
 interface BannerCarouselProps {
   autoPlayInterval?: number; // 自动播放间隔（毫秒）
@@ -68,15 +67,15 @@ export default function BannerCarousel({ autoPlayInterval = 5000, delayLoad = fa
     }
   };
 
-  // 获取图片原始URL（处理TX完整URL和TMDB路径）
+  // 获取图片URL（处理TX完整URL和TMDB路径）
   const getImageUrl = (path: string | null) => {
     if (!path) return '';
-    // 如果是完整URL（TX数据源或豆瓣），直接返回原始地址
+    // 如果是完整URL（TX数据源或豆瓣），使用processImageUrl统一处理
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      return path;
+      return processImageUrl(path);
     }
-    // 否则使用TMDB的URL拼接原始地址
-    return getTMDBImageUrl(path, 'original');
+    // 否则使用TMDB的URL拼接，并通过processImageUrl处理
+    return processImageUrl(getTMDBImageUrl(path, 'original'));
   };
 
   // 获取视频URL（处理豆瓣视频代理）
@@ -455,11 +454,13 @@ export default function BannerCarousel({ autoPlayInterval = 5000, delayLoad = fa
               </div>
             ) : (
               /* 显示图片 */
-              <ProxyImage
-                originalSrc={getImageUrl(item.backdrop_path || item.poster_path)}
+              <Image
+                src={getImageUrl(item.backdrop_path || item.poster_path)}
                 alt={item.title}
-                className="absolute inset-0 w-full h-full object-cover"
-                loading={index === 0 ? 'eager' : 'lazy'}
+                fill
+                className="object-cover"
+                priority={index === 0}
+                sizes="100vw"
               />
             )}
             {/* 渐变遮罩 */}
