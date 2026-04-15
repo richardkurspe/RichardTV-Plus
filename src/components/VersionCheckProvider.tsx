@@ -24,9 +24,9 @@ export const VersionCheckProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const checkUpdate = async () => {
-      try {
-        const status = await checkForUpdates();
-        setUpdateStatus(status);
+      try { 
+        // 完全禁用更新提示
+        setUpdateStatus(null);
       } catch (error) {
         console.warn('版本检查失败:', error);
       } finally {
