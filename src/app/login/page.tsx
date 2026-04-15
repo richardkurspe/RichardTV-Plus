@@ -21,7 +21,9 @@ function VersionDisplay() {
     const checkUpdate = async () => {
       try {
         const status = await checkForUpdates();
-        setUpdateStatus(status);
+        //setUpdateStatus(status);
+        // 禁用更新检测
+        setUpdateStatus(UpdateStatus.NO_UPDATE);
       } catch (_) {
         // do nothing
       } finally {
